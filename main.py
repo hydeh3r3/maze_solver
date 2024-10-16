@@ -1,4 +1,85 @@
 from tkinter import Tk, BOTH, Canvas
+import time
+import random
+
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
+class Line:
+    def __init__(self, point1: Point, point2: Point):
+        self.point1 = point1
+        self.point2 = point2
+    
+    def draw(self, canvas: Canvas, fill_color: str):
+        canvas.create_line(
+            self.point1.x, self.point1.y, self.point2.x, self.point2.y, 
+            fill=fill_color, width=2
+        )
+
+class Cell:
+    def __init__(self, win: 'Window', x1: int, y1: int, x2: int, y2: int):
+        self.has_left_wall = True
+        self.has_right_wall = True
+        self.has_top_wall = True
+        self.has_bottom_wall = True
+        self.visited = False
+        self._x1 = x1
+        self._x2 = x2
+        self._y1 = y1
+        self._y2 = y2
+        self._win = win
+
+    def draw(self):
+        if self.has_left_wall:
+            line = Line(Point(self._x1, self._y1), Point(self._x1, self._y2))
+            self._win.draw_line(line, "black")
+        else:
+            line = Line(Point(self._x1, self._y1), Point(self._x1, self._y2))
+            self._win.draw_line(line, "#d9d9d9")
+
+        if self.has_top_wall:
+            line = Line(Point(self._x1, self._y1), Point(self._x2, self._y1))
+            self._win.draw_line(line, "black")
+        else:
+            line = Line(Point(self._x1, self._y1), Point(self._x2, self._y1))
+            self._win.draw_line(line, "#d9d9d9")
+
+        if self.has_right_wall:
+            line = Line(Point(self._x2, self._y1), Point(self._x2, self._y2))
+            self._win.draw_line(line, "black")
+        else:
+            line = Line(Point(self._x2, self._y1), Point(self._x2, self._y2))
+            self._win.draw_line(line, "#d9d9d9")
+
+        if self.has_bottom_wall:
+            line = Line(Point(self._x1, self._y2), Point(self._x2, self._y2))
+            self._win.draw_line(line, "black")
+        else:
+            line = Line(Point(self._x1, self._y2), Point(self._x2, self._y2))
+            self._win.draw_line(line, "#d9d9d9")
+
+    def draw_move(self, to_cell, undo=False):
+        """
+        Draw a line from the center of this cell to the center of another cell.
+
+        Args:
+            to_cell (Cell): The cell to draw the line to.
+            undo (bool): If True, draw the line in gray (for backtracking). If False, draw in red.
+        """
+        # Calculate the center coordinates of both cells
+        x1 = (self._x1 + self._x2) // 2
+        y1 = (self._y1 + self._y2) // 2
+        x2 = (to_cell._x1 + to_cell._x2) // 2
+        y2 = (to_cell._y1 + to_cell._y2) // 2
+
+        # Create a line between the centers
+        line = Line(Point(x1, y1), Point(x2, y2))
+
+        # Draw the line with the appropriate color
+        color = "gray" if undo else "red"
+        self._win.draw_line(line, color)
 
 class Window:
     def __init__(self, width: int, height: int) -> None:
@@ -37,8 +118,118 @@ class Window:
         """
         self.__running = False
 
+    def draw_line(self, line: Line, fill_color: str) -> None:
+        """
+        Draw a line on the canvas.
+
+        Args:
+            line (Line): The line to draw.
+            fill_color (str): The color to use for drawing the line.
+        """
+        line.draw(self.__canvas, fill_color)
+
+class Maze:
+    def __init__(self, x1, y1, num_rows, num_cols, cell_size_x, cell_size_y, win, seed=None):
+        self._x1 = x1
+        self._y1 = y1
+        self._num_rows = num_rows
+        self._num_cols = num_cols
+        self._cell_size_x = cell_size_x
+        self._cell_size_y = cell_size_y
+        self._win = win
+        self._cells = []
+
+        if seed is not None:
+            random.seed(seed)
+
+        self._create_cells()
+        self._break_entrance_and_exit()
+        self._break_walls_r(0, 0)  # Start breaking walls from the top-left cell
+
+    def _break_entrance_and_exit(self):
+        # Remove the top wall of the top-left cell (entrance)
+        self._cells[0][0].has_top_wall = False
+        self._draw_cell(0, 0)
+
+        # Remove the bottom wall of the bottom-right cell (exit)
+        self._cells[-1][-1].has_bottom_wall = False
+        self._draw_cell(self._num_cols - 1, self._num_rows - 1)
+
+    def _create_cells(self):
+        for i in range(self._num_cols):
+            col = []
+            for j in range(self._num_rows):
+                x1 = self._x1 + i * self._cell_size_x
+                y1 = self._y1 + j * self._cell_size_y
+                x2 = x1 + self._cell_size_x
+                y2 = y1 + self._cell_size_y
+                cell = Cell(self._win, x1, y1, x2, y2)
+                col.append(cell)
+            self._cells.append(col)
+        
+        # Draw cells after they've all been created
+        for i in range(self._num_cols):
+            for j in range(self._num_rows):
+                self._draw_cell(i, j)
+        
+        # Break entrance and exit
+        self._break_entrance_and_exit()
+
+    def _draw_cell(self, i: int, j: int):
+        try:
+            cell = self._cells[i][j]
+            cell.draw()
+            self._animate()
+        except IndexError:
+            print(f"Error: Cell at position ({i}, {j}) does not exist.")
+
+    def _animate(self):
+        self._win.redraw()
+        time.sleep(0.05)
+
+    def _break_walls_r(self, i, j):
+        self._cells[i][j].visited = True
+        
+        while True:
+            possible_directions = []
+            
+            # Check adjacent cells
+            if i > 0 and not self._cells[i-1][j].visited:
+                possible_directions.append(('N', i-1, j))
+            if i < self._num_rows - 1 and not self._cells[i+1][j].visited:
+                possible_directions.append(('S', i+1, j))
+            if j > 0 and not self._cells[i][j-1].visited:
+                possible_directions.append(('W', i, j-1))
+            if j < self._num_cols - 1 and not self._cells[i][j+1].visited:
+                possible_directions.append(('E', i, j+1))
+            
+            if len(possible_directions) == 0:
+                self._draw_cell(i, j)
+                return
+            
+            direction, next_i, next_j = random.choice(possible_directions)
+            
+            if direction == 'N':
+                self._cells[i][j].has_top_wall = False
+                self._cells[next_i][next_j].has_bottom_wall = False
+            elif direction == 'S':
+                self._cells[i][j].has_bottom_wall = False
+                self._cells[next_i][next_j].has_top_wall = False
+            elif direction == 'W':
+                self._cells[i][j].has_left_wall = False
+                self._cells[next_i][next_j].has_right_wall = False
+            elif direction == 'E':
+                self._cells[i][j].has_right_wall = False
+                self._cells[next_i][next_j].has_left_wall = False
+            
+            self._break_walls_r(next_i, next_j)
+
 def main():
     win = Window(800, 600)
+    
+    # Create a maze
+    maze = Maze(50, 50, 10, 10, 50, 50, win, seed=0)
+    
     win.wait_for_close()
 
 if __name__ == "__main__":
