@@ -7,6 +7,8 @@ This project implements a maze generator and solver using Python and Tkinter for
 - Generates random mazes using a recursive backtracking algorithm
 - Visualizes the maze generation process
 - Implements a simple GUI using Tkinter
+- Allows customization of maze size and cell dimensions
+- Provides unit tests for key functionalities
 
 ## Classes
 
@@ -35,13 +37,25 @@ This will create a window displaying the maze generation process.
 
 ## Customization
 
-You can customize the maze size and cell dimensions by modifying the parameters in the `main()` function:
+You can customize the maze size and cell dimensions by modifying the parameters in the `main()` function in `main.py`:
 
 ## Dependencies
 
 - Python 3.x
 - Tkinter (usually comes pre-installed with Python)
 
+## Project Structure
+
+- `main.py`: Entry point of the application
+- `maze.py`: Contains the Maze class for maze generation
+- `cell.py`: Defines the Cell class
+- `graphics.py`: Implements the Window, Point, and Line classes for visualization
+- `tests.py`: Contains unit tests for the project
+
 ## Note
 
-This project is a work in progress and currently only implements maze generation. Solving functionality may be added in future updates.
+This project implements maze generation and visualization. The solving functionality is a work in progress and may be added in future updates.
+
+## Testing
+
+To run the unit tests:
