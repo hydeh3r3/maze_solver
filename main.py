@@ -32,33 +32,31 @@ class Cell:
         self._win = win
 
     def draw(self):
+        bg_color = "#d9d9d9"  # Background color for non-existent walls
         if self.has_left_wall:
             line = Line(Point(self._x1, self._y1), Point(self._x1, self._y2))
             self._win.draw_line(line, "black")
         else:
             line = Line(Point(self._x1, self._y1), Point(self._x1, self._y2))
-            self._win.draw_line(line, "#d9d9d9")
-
-        if self.has_top_wall:
-            line = Line(Point(self._x1, self._y1), Point(self._x2, self._y1))
-            self._win.draw_line(line, "black")
-        else:
-            line = Line(Point(self._x1, self._y1), Point(self._x2, self._y1))
-            self._win.draw_line(line, "#d9d9d9")
-
+            self._win.draw_line(line, bg_color)
         if self.has_right_wall:
             line = Line(Point(self._x2, self._y1), Point(self._x2, self._y2))
             self._win.draw_line(line, "black")
         else:
             line = Line(Point(self._x2, self._y1), Point(self._x2, self._y2))
-            self._win.draw_line(line, "#d9d9d9")
-
+            self._win.draw_line(line, bg_color)
+        if self.has_top_wall:
+            line = Line(Point(self._x1, self._y1), Point(self._x2, self._y1))
+            self._win.draw_line(line, "black")
+        else:
+            line = Line(Point(self._x1, self._y1), Point(self._x2, self._y1))
+            self._win.draw_line(line, bg_color)
         if self.has_bottom_wall:
             line = Line(Point(self._x1, self._y2), Point(self._x2, self._y2))
             self._win.draw_line(line, "black")
         else:
             line = Line(Point(self._x1, self._y2), Point(self._x2, self._y2))
-            self._win.draw_line(line, "#d9d9d9")
+            self._win.draw_line(line, bg_color)
 
     def draw_move(self, to_cell, undo=False):
         """
@@ -129,7 +127,7 @@ class Window:
         line.draw(self.__canvas, fill_color)
 
 class Maze:
-    def __init__(self, x1, y1, num_rows, num_cols, cell_size_x, cell_size_y, win, seed=None):
+    def __init__(self, x1, y1, num_rows, num_cols, cell_size_x, cell_size_y, win=None, seed=None):
         self._x1 = x1
         self._y1 = y1
         self._num_rows = num_rows
@@ -145,15 +143,16 @@ class Maze:
         self._create_cells()
         self._break_entrance_and_exit()
         self._break_walls_r(0, 0)  # Start breaking walls from the top-left cell
+        self._reset_cells_visited()  # Reset visited status after maze generation
 
     def _break_entrance_and_exit(self):
-        # Remove the top wall of the top-left cell (entrance)
+        # Break the entrance (top wall of the top-left cell)
         self._cells[0][0].has_top_wall = False
-        self._draw_cell(0, 0)
+        self._cells[0][0].draw()
 
-        # Remove the bottom wall of the bottom-right cell (exit)
+        # Break the exit (bottom wall of the bottom-right cell)
         self._cells[-1][-1].has_bottom_wall = False
-        self._draw_cell(self._num_cols - 1, self._num_rows - 1)
+        self._cells[-1][-1].draw()
 
     def _create_cells(self):
         for i in range(self._num_cols):
@@ -176,6 +175,8 @@ class Maze:
         self._break_entrance_and_exit()
 
     def _draw_cell(self, i: int, j: int):
+        if self._win is None:
+            return
         try:
             cell = self._cells[i][j]
             cell.draw()
@@ -190,45 +191,108 @@ class Maze:
     def _break_walls_r(self, i, j):
         self._cells[i][j].visited = True
         
-        while True:
-            possible_directions = []
+        directions = [('N', -1, 0), ('S', 1, 0), ('W', 0, -1), ('E', 0, 1)]
+        random.shuffle(directions)
+        
+        for direction, di, dj in directions:
+            next_i, next_j = i + di, j + dj
             
-            # Check adjacent cells
-            if i > 0 and not self._cells[i-1][j].visited:
-                possible_directions.append(('N', i-1, j))
-            if i < self._num_rows - 1 and not self._cells[i+1][j].visited:
-                possible_directions.append(('S', i+1, j))
-            if j > 0 and not self._cells[i][j-1].visited:
-                possible_directions.append(('W', i, j-1))
-            if j < self._num_cols - 1 and not self._cells[i][j+1].visited:
-                possible_directions.append(('E', i, j+1))
-            
-            if len(possible_directions) == 0:
-                self._draw_cell(i, j)
-                return
-            
-            direction, next_i, next_j = random.choice(possible_directions)
-            
-            if direction == 'N':
-                self._cells[i][j].has_top_wall = False
-                self._cells[next_i][next_j].has_bottom_wall = False
-            elif direction == 'S':
-                self._cells[i][j].has_bottom_wall = False
-                self._cells[next_i][next_j].has_top_wall = False
-            elif direction == 'W':
-                self._cells[i][j].has_left_wall = False
-                self._cells[next_i][next_j].has_right_wall = False
-            elif direction == 'E':
-                self._cells[i][j].has_right_wall = False
-                self._cells[next_i][next_j].has_left_wall = False
-            
-            self._break_walls_r(next_i, next_j)
+            # Check if the next cell is within the maze bounds
+            if (0 <= next_i < self._num_rows and 
+                0 <= next_j < self._num_cols and 
+                not self._cells[next_i][next_j].visited):
+                
+                if direction == 'N':
+                    self._cells[i][j].has_top_wall = False
+                    self._cells[next_i][next_j].has_bottom_wall = False
+                elif direction == 'S':
+                    self._cells[i][j].has_bottom_wall = False
+                    self._cells[next_i][next_j].has_top_wall = False
+                elif direction == 'W':
+                    self._cells[i][j].has_left_wall = False
+                    self._cells[next_i][next_j].has_right_wall = False
+                elif direction == 'E':
+                    self._cells[i][j].has_right_wall = False
+                    self._cells[next_i][next_j].has_left_wall = False
+                
+                self._cells[i][j].draw()
+                self._cells[next_i][next_j].draw()
+                self._animate()
+                self._break_walls_r(next_i, next_j)
+        
+        self._draw_cell(i, j)
+
+    def _reset_cells_visited(self):
+        """Reset the visited property of all cells to False."""
+        for col in self._cells:
+            for cell in col:
+                cell.visited = False
+
+    def solve(self):
+        """
+        Solve the maze using depth-first search.
+        Returns True if the maze was solved, False otherwise.
+        """
+        # Reset all cells to unvisited before solving
+        self._reset_cells_visited()
+        return self._solve_r(0, 0)
+
+    def _solve_r(self, i, j):
+        """
+        Recursive helper method to solve the maze.
+        Returns True if the current cell leads to the solution, False otherwise.
+        """
+        self._animate()
+        self._cells[i][j].visited = True
+
+        # Check if we've reached the end cell (bottom-right corner)
+        if i == self._num_rows - 1 and j == self._num_cols - 1:
+            return True
+
+        # Define possible directions: right, down, left, up
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+
+        for di, dj in directions:
+            next_i, next_j = i + di, j + dj
+
+            # Check if the next cell is within the maze and not visited
+            if (0 <= next_i < self._num_rows and 
+                0 <= next_j < self._num_cols and 
+                not self._cells[next_i][next_j].visited):
+
+                # Check if there's no wall blocking the path
+                if ((di, dj) == (0, 1) and not self._cells[i][j].has_right_wall) or \
+                   ((di, dj) == (1, 0) and not self._cells[i][j].has_bottom_wall) or \
+                   ((di, dj) == (0, -1) and not self._cells[i][j].has_left_wall) or \
+                   ((di, dj) == (-1, 0) and not self._cells[i][j].has_top_wall):
+
+                    # Draw the move
+                    self._cells[i][j].draw_move(self._cells[next_i][next_j])
+
+                    # Recursively solve from the next cell
+                    if self._solve_r(next_i, next_j):
+                        return True
+
+                    # If the path didn't lead to a solution, undo the move
+                    self._cells[i][j].draw_move(self._cells[next_i][next_j], undo=True)
+
+        return False
 
 def main():
     win = Window(800, 600)
     
     # Create a maze
     maze = Maze(50, 50, 10, 10, 50, 50, win, seed=0)
+    
+    # Break entrance and exit
+    maze._break_entrance_and_exit()
+    
+    # Solve the maze
+    solved = maze.solve()
+    if solved:
+        print("Maze solved!")
+    else:
+        print("Maze could not be solved.")
     
     win.wait_for_close()
 

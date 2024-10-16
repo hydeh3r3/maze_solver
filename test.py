@@ -22,6 +22,8 @@ class Tests(unittest.TestCase):
         num_rows = 10
         mock_window = Mock()  # Create a mock Window object
         maze = Maze(0, 0, num_rows, num_cols, 10, 10, mock_window)
+
+        maze._break_entrance_and_exit()
         
         # Check if the entrance (top-left cell) has its top wall removed
         self.assertFalse(maze._cells[0][0].has_top_wall)
@@ -37,6 +39,25 @@ class Tests(unittest.TestCase):
         self.assertTrue(maze._cells[-1][-1].has_left_wall)
         self.assertTrue(maze._cells[-1][-1].has_right_wall)
         self.assertTrue(maze._cells[-1][-1].has_top_wall)
+
+    def test_reset_cells_visited(self):
+        num_cols = 5
+        num_rows = 5
+        mock_window = Mock()
+        maze = Maze(0, 0, num_rows, num_cols, 10, 10, mock_window)
+        
+        # Set some cells as visited
+        maze._cells[0][0].visited = True
+        maze._cells[2][2].visited = True
+        maze._cells[4][4].visited = True
+        
+        # Call the reset method
+        maze._reset_cells_visited()
+        
+        # Check if all cells are now marked as not visited
+        for col in maze._cells:
+            for cell in col:
+                self.assertFalse(cell.visited, "Cell should be marked as not visited after reset")
 
 if __name__ == "__main__":
     unittest.main()
